@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
+from catkin_pkg.packages import find_packages
+from catkin_tools.common import format_env_dict
+from catkin_tools.resultspace import get_resultspace_environment
+
 import os
+import sys
 
 
 _which_cache = {}
@@ -28,3 +35,32 @@ def which(program):
                 break
 
     return _which_cache[program]
+
+
+def loadenv(logger, event_queue, job_env, package, context):
+    if context.install:
+        raise ValueError('Cannot test with installed workspace.')
+    env_loader_path = context.package_final_path(package)
+
+    job_env.update(get_resultspace_environment(
+        env_loader_path,
+        base_env=job_env,
+        quiet=True,
+        cached=context.use_env_cache,
+        strict=False))
+    return 0
+
+
+def print_test_env(context, package_name):
+    workspace_packages = find_packages(context.source_space_abs, exclude_subspaces=True, warnings=[])
+    # Load the environment used by this package for testing.
+    for pth, pkg in workspace_packages.items():
+        if pkg.name == package_name:
+            environ = dict(os.environ)
+            loadenv(None, None, environ, pkg, context)
+            print(format_env_dict(environ))
+            return 0
+    print('[test] Error: Package `{}` not in workspace.'.format(package_name), file=sys.stderr)
+    return 1
+
+

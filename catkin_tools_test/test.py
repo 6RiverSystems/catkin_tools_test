@@ -28,9 +28,9 @@ except ImportError:
 from catkin_pkg.packages import find_packages
 from catkin_pkg.package import parse_package
 
+from catkin_tools.argument_parsing import handle_make_arguments
 from catkin_tools.common import log
 from catkin_tools.common import wide_log
-
 from catkin_tools.execution.controllers import ConsoleStatusController
 from catkin_tools.execution.executor import execute_jobs
 from catkin_tools.execution.executor import run_until_complete
@@ -39,14 +39,11 @@ from catkin_tools.execution.stages import CommandStage
 from catkin_tools.execution.stages import FunctionStage
 from catkin_tools.terminal_color import fmt
 
+from catkin_tools.jobs.commands.cmake import CMakeMakeIOBufferProtocol
+from catkin_tools.jobs.commands.make import MAKE_EXEC
 from catkin_tools.jobs.utils import makedirs
 
-from .util import which
-
-
-class UnconfiguredPackage(Exception):
-    def __init__(self, package):
-        self.package = package
+from .util import loadenv, which
 
 
 def get_packages_to_test(context, packages):
@@ -88,7 +85,8 @@ def get_packages_tests(context, packages_to_test):
         package_build_space = os.path.join(context.build_space_abs, package.name)
         package_build_cmakefiles = os.path.join(package_build_space, 'CMakeFiles')
         if not os.path.exists(package_build_cmakefiles):
-            raise UnconfiguredPackage(package)
+            # Skip any source packages which are not configured.
+            continue
 
         package_tests = []
         pattern = 'run_tests_%s_(.*?).dir' % package.name
@@ -107,13 +105,54 @@ def create_package_job(context, package, package_tests):
     if not os.path.exists(os.path.join(build_space, 'Makefile')):
         raise
 
-    test_results_space = os.path.join(context.build_space_abs, '..', 'test_results', package.name)
-    package_path_abs = os.path.join(context.source_space_abs, package_path)
+    build_space = context.package_build_space(package)
+    devel_space = context.package_devel_space(package)
+    catkin_test_results_dir = os.path.join(build_space, 'test_results')
+    #package_path_abs = os.path.join(context.source_space_abs, package_path)
+
+    job_env = dict(os.environ)
+    stages = []
+
+    stages.append(FunctionStage(
+        'loadenv',
+        loadenv,
+        job_env=job_env,
+        package=package,
+        context=context
+    ))
+
+    package_test_targets = ['run_tests_%s_%s' % (package.name, test_name)
+            for test_name in package_tests]
+
+    make_args = handle_make_arguments(
+        context.make_args +
+        context.catkin_make_args +
+        package_test_targets)
+
+
+    stages.append(CommandStage(
+        'make',
+        [MAKE_EXEC] + make_args,
+        cwd=build_space,
+        #env_overrides=env_overrides,
+        logger_factory=CMakeMakeIOBufferProtocol.factory
+    ))
+
+    return Job(jid=package.name, deps=[], env=job_env, stages=stages)
+
+
+def create_results_check_job(context, package_names):
+    job_env = dict(os.environ)
 
     stages = []
-    #stages.append()
+    #stages.append(CommandStage(
+    #    'make',
+    #    [MAKE_EXEC] + make_args,
+    #    cwd=build_space,
+    #    logger_factory=CMakeMakeIOBufferProtocol.factory
+    #))
 
-    return Job(jid=package.name, deps=deps, env={}, stages=stages)
+    return Job(jid='check_test_results', deps=package_names, env=job_env, stages=stages)
 
 
 def test_workspace(
@@ -141,6 +180,8 @@ def test_workspace(
 
     # Get the full list of tests available in those packages, as configured.
     packages_tests = get_packages_tests(context, packages_to_test)
+    print packages_tests
+
 
     if list_tests:
         # Don't build or run, just list available targets.
@@ -155,8 +196,10 @@ def test_workspace(
         jobs = []
 
         # Construct jobs for running tests.
-        for package in packages_tests:
+        for package, package_tests in packages_tests:
             jobs.append(create_package_job(context, package, package_tests))
+        package_names = [p[0].name for p in packages_tests]
+        jobs.append(create_results_check_job(context, package_names))
 
         # Queue for communicating status.
         event_queue = Queue()

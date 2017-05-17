@@ -12,20 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 from catkin_tools.argument_parsing import add_context_args
 from catkin_tools.context import Context
+from catkin_tools.execution import job_server
 from catkin_tools.terminal_color import fmt
 
-from  catkin_tools.execution import job_server
-
-
 from .test import test_workspace
-
-import sys
+from .util import print_test_env
 
 
 def main(opts):
     ctx = Context.load(opts.workspace, opts.profile, opts, append=True)
+
+    if opts.get_env:
+        return print_test_env(ctx, opts.get_env)
 
     job_server.initialize(
         max_jobs=4,
@@ -67,6 +69,8 @@ def prepare_arguments(parser):
         help='Do not build or run, only list available tests in selected packages.')
     add('--tests', '-t', nargs='+', type=str, default=None,
         help='Specify exact tests to run.')
+    add('--get-env', metavar='PKGNAME', type=str, default=None,
+        help='Get environment to run tests for specific package.')
 
     behavior_group = parser.add_argument_group('Interface', 'The behavior of the command-line interface.')
     add = behavior_group.add_argument
@@ -88,7 +92,5 @@ def prepare_arguments(parser):
              'Must be positive, default is 10 Hz.')
     add('--no-notify', action='store_true', default=False,
         help='Suppresses system pop-up notification.')
-
-    print parser
 
     return parser

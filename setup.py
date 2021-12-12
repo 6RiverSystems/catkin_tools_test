@@ -20,7 +20,7 @@ setup(
     license='Apache 2.0',
     entry_points={
         'catkin_tools.commands.catkin.verbs': [
-            'test = catkin_tools_test:description',
+            'tests = catkin_tools_test:description',
         ]
     },
     install_requires=['catkin_tools']

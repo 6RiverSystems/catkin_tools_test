@@ -19,7 +19,7 @@ from .cli import prepare_arguments
 
 
 description = dict(
-    verb='test',
+    verb='tests',
     description="Build and run tests for packages in workspace.",
     main=main,
     prepare_arguments=prepare_arguments,

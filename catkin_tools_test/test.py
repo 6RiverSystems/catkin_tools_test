@@ -180,8 +180,17 @@ def test_workspace(
 
     # Get the full list of tests available in those packages, as configured.
     packages_tests = get_packages_tests(context, packages_to_test)
-    print packages_tests
+    #print "before filtering: {}".format(packages_tests)
+    #print "tests arg: {}".format(tests)
+    # Filter tests before listing or running
+    def filter_tests(packages_tests):
+        package, package_tests = packages_tests
+        pattern = '.*' if not tests else tests[0]
+        package_tests_filtered = filter(lambda test: re.match(pattern, test), package_tests)
+        return (package, package_tests_filtered)
 
+    packages_tests_filtered = map(filter_tests, packages_tests)
+    #print "after filtering: {}".format(packages_tests_filtered)
 
     if list_tests:
         # Don't build or run, just list available targets.
@@ -196,10 +205,10 @@ def test_workspace(
         jobs = []
 
         # Construct jobs for running tests.
-        for package, package_tests in packages_tests:
+        for package, package_tests in packages_tests_filtered:
             jobs.append(create_package_job(context, package, package_tests))
         package_names = [p[0].name for p in packages_tests]
-        jobs.append(create_results_check_job(context, package_names))
+        #jobs.append(create_results_check_job(context, package_names))
 
         # Queue for communicating status.
         event_queue = Queue()

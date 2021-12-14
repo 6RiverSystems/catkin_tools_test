@@ -14,4 +14,12 @@ To list all available tests:
 `catkin tests --list` 
 To run all tests:
 `catkin tests`
+To run only a subset of tests, you can pass a regular expression. Only tests whose names match the expression will run:
+`catkin tests -t <RE>`
+or
+`catkin tests --tests <RE>`
+
+To run only `rostest` tests, use
+`catkin tests -t 'rostest_'*`
+
 

@@ -45,6 +45,7 @@ from catkin_tools.jobs.utils import makedirs
 
 from .util import loadenv, which
 
+from multiprocessing import cpu_count
 
 def get_packages_to_test(context, packages):
     packages_to_test = find_packages(context.source_space_abs, exclude_subspaces=True, warnings=[]).values()
@@ -182,6 +183,7 @@ def test_workspace(
     packages_tests = get_packages_tests(context, packages_to_test)
     #print "before filtering: {}".format(packages_tests)
     #print "tests arg: {}".format(tests)
+    print "cpu count: {}".format(cpu_count())
     # Filter tests before listing or running
     def filter_tests(packages_tests):
         package, package_tests = packages_tests

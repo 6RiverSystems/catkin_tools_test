@@ -39,7 +39,7 @@ def main(opts):
         packages=opts.packages,
         tests=opts.tests,
         list_tests=opts.list_tests,
-        n_jobs=int(opts.parallel_jobs or 4),
+        n_jobs=int(opts.parallel_jobs or 6),
         force_color=opts.force_color,
         quiet=not opts.verbose,
         interleave_output=opts.interleave_output,
